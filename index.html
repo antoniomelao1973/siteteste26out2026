@@ -3,39 +3,566 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contactos</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="theme-color" content="#f4f4ef">
+    <title>Viva Cidade | Ocorrências municipais</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script defer src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <style>
+        :root {
+            --paper: #f4f4ef;
+            --white: #fff;
+            --ink: #1d302d;
+            --muted: #74817c;
+            --line: #e5e8e1;
+            --green: #245c4b;
+            --green-dark: #193f36;
+            --lime: #d7ed9f;
+            --coral: #e47b62;
+            --blue: #dcecf0;
+            --shadow: 0 12px 35px rgba(29, 48, 45, .06);
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--paper); color: var(--ink); font-family: "DM Sans", sans-serif; font-size: 14px; }
+        button, input, select, textarea { font: inherit; }
+        button { cursor: pointer; }
+        .app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+        .sidebar { position: sticky; top: 0; display: flex; flex-direction: column; height: 100vh; padding: 28px 18px 18px; background: var(--green-dark); color: #f6f7f1; }
+        .brand { display: flex; align-items: center; gap: 11px; padding: 0 10px 38px; color: inherit; text-decoration: none; }
+        .brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px 12px 12px 4px; background: var(--lime); color: var(--green-dark); font-size: 18px; font-weight: 700; }
+        .brand-name { font-family: "DM Serif Display", Georgia, serif; font-size: 21px; line-height: 1; }
+        .brand-sub { margin-top: 5px; color: #b7c8c0; font-size: 10px; letter-spacing: 0; }
+        .nav-label { padding: 0 11px 10px; color: #9fb6aa; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+        .nav-list { display: grid; gap: 5px; }
+        .nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: #c9d6d0; text-align: left; transition: background .18s, color .18s; }
+        .nav-link:hover, .nav-link[aria-current="page"] { background: #31574c; color: #fff; }
+        .nav-icon { display: grid; place-items: center; width: 20px; color: var(--lime); font-size: 17px; }
+        .nav-count { margin-left: auto; color: #c9d6d0; font-size: 11px; }
+        .sidebar-spacer { flex: 1; }
+        .local-note { padding: 15px 13px; border: 1px solid rgba(255,255,255,.13); border-radius: 7px; color: #d5e0da; font-size: 11px; line-height: 1.55; }
+        .local-note strong { display: block; margin-bottom: 4px; color: var(--lime); font-size: 12px; }
+        .main { min-width: 0; padding: 0 42px 44px; }
+        .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 76px; border-bottom: 1px solid var(--line); }
+        .breadcrumb { color: var(--muted); font-size: 12px; }
+        .top-actions { display: flex; align-items: center; gap: 12px; }
+        .icon-button { position: relative; display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; background: var(--white); color: var(--ink); font-size: 17px; }
+        .notification-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border: 1px solid white; border-radius: 50%; background: var(--coral); }
+        .avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--blue); color: var(--green-dark); font-weight: 700; }
+        .primary-button, .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 0 16px; border: 1px solid var(--green); border-radius: 5px; background: var(--green); color: #fff; font-weight: 600; transition: transform .18s, background .18s; }
+        .primary-button:hover { transform: translateY(-1px); background: var(--green-dark); }
+        .secondary-button { border-color: var(--line); background: var(--white); color: var(--ink); }
+        .secondary-button:hover { border-color: var(--green); }
+        .page { display: none; padding-top: 34px; animation: arrive .32s ease both; }
+        .page.active { display: block; }
+        @keyframes arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; margin-bottom: 28px; }
+        .eyebrow { margin-bottom: 8px; color: var(--green); font-size: 10px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
+        h1, h2, h3, p { margin-top: 0; }
+        h1 { margin-bottom: 8px; font-family: "DM Serif Display", Georgia, serif; font-size: 40px; font-weight: 400; line-height: 1.12; }
+        .heading-copy { max-width: 590px; margin-bottom: 0; color: var(--muted); line-height: 1.65; }
+        .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 22px; }
+        .stat { min-height: 112px; padding: 18px 19px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); }
+        .stat-top { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 11px; }
+        .stat-symbol { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; background: var(--paper); color: var(--green); font-weight: 700; }
+        .stat-value { margin-top: 12px; font-size: 28px; font-weight: 600; line-height: 1; }
+        .stat-foot { margin-top: 6px; color: var(--muted); font-size: 10px; }
+        .overview-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, .8fr); gap: 16px; align-items: start; }
+        .surface { border: 1px solid var(--line); border-radius: 6px; background: var(--white); }
+        .surface-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+        .surface-head h2, .surface-head h3 { margin: 0; font-size: 14px; font-weight: 700; }
+        .text-button { padding: 5px 0; border: 0; background: transparent; color: var(--green); font-size: 11px; font-weight: 700; }
+        .empty { padding: 32px 22px; color: var(--muted); text-align: center; }
+        .empty-mark { display: grid; place-items: center; width: 44px; height: 44px; margin: 0 auto 13px; border-radius: 50%; background: var(--lime); color: var(--green-dark); font-size: 20px; }
+        .empty strong { display: block; margin-bottom: 5px; color: var(--ink); font-size: 13px; }
+        .empty p { margin-bottom: 0; font-size: 12px; line-height: 1.6; }
+        .track-card { padding: 20px; background: var(--blue); }
+        .track-card h3 { margin-bottom: 6px; font-family: "DM Serif Display", Georgia, serif; font-size: 22px; font-weight: 400; }
+        .track-card p { margin-bottom: 17px; color: #596e70; font-size: 11px; line-height: 1.55; }
+        .inline-form { display: flex; gap: 7px; }
+        .inline-form input { min-width: 0; flex: 1; }
+        input, select, textarea { width: 100%; min-height: 42px; padding: 10px 11px; border: 1px solid #dfe4dc; border-radius: 4px; outline: 0; background: #fff; color: var(--ink); }
+        textarea { min-height: 112px; resize: vertical; }
+        input:focus, select:focus, textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(36,92,75,.1); }
+        .inline-form .primary-button { min-height: 42px; padding: 0 13px; }
+        .result-box { margin-top: 13px; }
+        .incident-list { display: grid; }
+        .incident-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+        .incident-row:last-child { border-bottom: 0; }
+        .incident-title { margin-bottom: 5px; font-size: 13px; font-weight: 700; }
+        .incident-meta { color: var(--muted); font-size: 10px; line-height: 1.5; }
+        .status { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 6px 9px; border-radius: 20px; background: #f0f3ed; color: #52635b; font-size: 10px; font-weight: 700; white-space: nowrap; }
+        .status::before { width: 6px; height: 6px; border-radius: 50%; background: currentColor; content: ""; }
+        .status[data-status="Recebida"] { background: #fff1dc; color: #9b671b; }
+        .status[data-status="Em análise"] { background: #e9f1fb; color: #4b6f9c; }
+        .status[data-status="Encaminhada"] { background: #f1eafa; color: #77559a; }
+        .status[data-status="Em resolução"] { background: #e4f2ee; color: #347766; }
+        .status[data-status="Resolvida"] { background: #eaf3dc; color: #597b2c; }
+        .status[data-status="Arquivada"] { background: #eceeeb; color: #747d76; }
+        .toolbar { display: flex; align-items: center; gap: 9px; }
+        .toolbar input { max-width: 270px; }
+        .filter-select { width: auto; min-width: 155px; }
+        .map-wrap { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: #e8eee8; }
+        #map { width: 100%; height: min(64vh, 590px); min-height: 380px; }
+        .map-empty { position: absolute; z-index: 500; top: 16px; left: 16px; max-width: 260px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.95); color: var(--muted); font-size: 11px; line-height: 1.5; box-shadow: var(--shadow); }
+        .map-legend { display: flex; align-items: center; gap: 8px; margin-top: 13px; color: var(--muted); font-size: 11px; }
+        .legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--coral); }
+        .map-fallback { display: none; place-items: center; height: 380px; padding: 30px; color: var(--muted); text-align: center; }
+        .management-list { display: grid; gap: 9px; margin-top: 14px; }
+        .management-row { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(130px, .75fr) minmax(145px, .8fr) minmax(130px, .8fr); gap: 14px; align-items: center; padding: 15px 17px; border: 1px solid var(--line); border-radius: 5px; background: var(--white); }
+        .management-row .incident-title { margin-bottom: 4px; }
+        .field-label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+        .management-row select { min-height: 36px; padding: 7px 8px; font-size: 11px; }
+        .modal { width: min(600px, calc(100vw - 28px)); max-height: min(90vh, 850px); padding: 0; border: 0; border-radius: 7px; box-shadow: 0 24px 80px rgba(17, 36, 31, .28); }
+        .modal::backdrop { background: rgba(17, 36, 31, .54); backdrop-filter: blur(2px); }
+        .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 24px 16px; border-bottom: 1px solid var(--line); }
+        .modal-head h2 { margin: 0 0 5px; font-family: "DM Serif Display", Georgia, serif; font-size: 25px; font-weight: 400; }
+        .modal-head p { margin: 0; color: var(--muted); font-size: 11px; }
+        .close-button { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 50%; background: white; color: var(--ink); font-size: 18px; }
+        .modal-body { display: grid; gap: 15px; max-height: calc(90vh - 156px); overflow: auto; padding: 20px 24px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+        .form-field label { display: block; margin-bottom: 7px; font-size: 11px; font-weight: 700; }
+        .form-field small { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+        .photo-field { display: flex; align-items: center; gap: 13px; }
+        .photo-preview { display: none; width: 58px; height: 58px; border-radius: 4px; object-fit: cover; }
+        .location-box { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 4px; background: #fafbf8; }
+        .location-copy { color: var(--muted); font-size: 10px; line-height: 1.5; }
+        .location-copy strong { display: block; color: var(--ink); font-size: 11px; }
+        .location-button { flex: 0 0 auto; padding: 8px 10px; border: 1px solid var(--green); border-radius: 4px; background: white; color: var(--green); font-size: 10px; font-weight: 700; }
+        .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--line); }
+        .toast { position: fixed; z-index: 2000; right: 24px; bottom: 24px; max-width: min(390px, calc(100vw - 32px)); padding: 13px 17px; border-radius: 5px; background: var(--green-dark); color: #fff; font-size: 12px; line-height: 1.5; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .2s, transform .2s; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .notice-list { display: grid; gap: 9px; }
+        .notice-item { padding: 12px; border-left: 3px solid var(--lime); background: var(--paper); font-size: 11px; line-height: 1.5; }
+        .notice-item time { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; }
+        .privacy-line { padding: 0 24px 17px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+        .leaflet-popup-content-wrapper { border-radius: 5px; }
+        .leaflet-popup-content { font-family: "DM Sans", sans-serif; font-size: 11px; }
+        @media (max-width: 1050px) {
+            .app { grid-template-columns: 210px minmax(0, 1fr); }
+            .main { padding-right: 25px; padding-left: 25px; }
+            .management-row { grid-template-columns: minmax(0, 1.3fr) minmax(120px, .8fr) minmax(135px, .9fr); }
+            .management-row .management-department { display: none; }
+        }
+        @media (max-width: 760px) {
+            .app { display: block; padding-bottom: 66px; }
+            .sidebar { position: fixed; z-index: 1000; top: auto; right: 0; bottom: 0; left: 0; display: block; width: 100%; height: 62px; padding: 5px 8px; border-top: 1px solid rgba(255,255,255,.14); }
+            .brand, .nav-label, .sidebar-spacer, .local-note { display: none; }
+            .nav-list { grid-template-columns: repeat(4, 1fr); gap: 3px; }
+            .nav-link { display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 51px; padding: 3px 1px; font-size: 9px; }
+            .nav-icon { height: 20px; font-size: 16px; }
+            .nav-count { display: none; }
+            .main { padding: 0 17px 30px; }
+            .topbar { min-height: 62px; }
+            .topbar .primary-button { min-height: 36px; padding: 0 11px; font-size: 11px; }
+            .top-actions { gap: 8px; }
+            .avatar { width: 32px; height: 32px; font-size: 11px; }
+            .icon-button { width: 34px; height: 34px; }
+            .page { padding-top: 25px; }
+            h1 { font-size: 32px; }
+            .page-heading { align-items: flex-start; flex-direction: column; margin-bottom: 21px; }
+            .page-heading .primary-button { align-self: stretch; }
+            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+            .stat { min-height: 99px; padding: 13px; }
+            .stat-value { font-size: 25px; }
+            .overview-grid { grid-template-columns: 1fr; }
+            .management-row { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+            .management-row .management-department { display: none; }
+            .management-row .management-status { grid-column: 1 / -1; }
+            .toolbar { width: 100%; }
+            .toolbar input { max-width: none; }
+            .toolbar .filter-select { min-width: 120px; }
+            #map { min-height: 370px; height: 55vh; }
+        }
+        @media (max-width: 430px) {
+            .breadcrumb { font-size: 10px; }
+            .top-actions .icon-button { display: none; }
+            .form-grid { grid-template-columns: 1fr; }
+            .modal-head, .modal-body { padding-right: 17px; padding-left: 17px; }
+            .modal-foot { padding-right: 17px; padding-left: 17px; }
+            .location-box { align-items: flex-start; flex-direction: column; }
+            .incident-row { padding-right: 14px; padding-left: 14px; }
+        }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+    </style>
 </head>
-<body class="bg-light">
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6">
-                <div class="card shadow-sm">
-                    <div class="card-body p-4">
-                        <h1 class="h3 mb-4 text-center">Contactos</h1>
-                        <form action="#" method="post">
-                            <div class="mb-3">
-                                <label for="nome" class="form-label">Nome</label>
-                                <input type="text" class="form-control" id="nome" name="nome" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" name="email" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="assunto" class="form-label">Assunto</label>
-                                <input type="text" class="form-control" id="assunto" name="assunto">
-                            </div>
-                            <div class="mb-3">
-                                <label for="mensagem" class="form-label">Mensagem</label>
-                                <textarea class="form-control" id="mensagem" name="mensagem" rows="5" required></textarea>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Enviar</button>
-                        </form>
-                    </div>
+<body>
+    <div class="app">
+        <aside class="sidebar" aria-label="Navegação principal">
+            <a class="brand" href="#inicio" aria-label="Viva Cidade, início">
+                <span class="brand-mark" aria-hidden="true">V</span>
+                <span><span class="brand-name">Viva Cidade</span><span class="brand-sub">Participação municipal</span></span>
+            </a>
+            <div class="nav-label">Espaço cidadão</div>
+            <nav class="nav-list">
+                <button class="nav-link" data-view="overview" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span>Visão geral</button>
+                <button class="nav-link" data-view="map"><span class="nav-icon" aria-hidden="true">⌖</span>Mapa de ocorrências</button>
+                <button class="nav-link" data-view="manage"><span class="nav-icon" aria-hidden="true">▤</span>Gestão<span class="nav-count" id="nav-count">0</span></button>
+                <button class="nav-link" data-view="track"><span class="nav-icon" aria-hidden="true">↗</span>Acompanhar</button>
+            </nav>
+            <div class="sidebar-spacer"></div>
+            <div class="local-note"><strong>Modo de demonstração</strong>Os dados ficam guardados apenas neste navegador. Não são enviados para a Câmara.</div>
+        </aside>
+
+        <main class="main">
+            <header class="topbar">
+                <div class="breadcrumb" id="breadcrumb">Portal cidadão <span aria-hidden="true">/</span> Visão geral</div>
+                <div class="top-actions">
+                    <button class="icon-button" id="notifications-button" aria-label="Ver notificações" title="Notificações">♧<span class="notification-dot" id="notification-dot" hidden></span></button>
+                    <span class="avatar" aria-label="Cidadão">C</span>
+                    <button class="primary-button" data-open-report><span aria-hidden="true">＋</span> Nova ocorrência</button>
                 </div>
-            </div>
-        </div>
+            </header>
+
+            <section class="page active" id="page-overview" aria-labelledby="page-title">
+                <div class="page-heading">
+                    <div><div class="eyebrow">Portal de ocorrências municipais</div><h1 id="page-title">A cidade em cuidado.</h1><p class="heading-copy">Participe na melhoria do espaço público. Reporte uma situação, acompanhe a resposta e ajude a construir uma cidade melhor para todos.</p></div>
+                    <button class="primary-button" data-open-report><span aria-hidden="true">＋</span> Reportar ocorrência</button>
+                </div>
+                <div class="stats" aria-label="Resumo de ocorrências">
+                    <article class="stat"><div class="stat-top">Total de ocorrências<span class="stat-symbol" aria-hidden="true">◎</span></div><div class="stat-value" id="stat-total">0</div><div class="stat-foot">Registadas neste dispositivo</div></article>
+                    <article class="stat"><div class="stat-top">Em tratamento<span class="stat-symbol" aria-hidden="true">◷</span></div><div class="stat-value" id="stat-open">0</div><div class="stat-foot">Aguardam resolução</div></article>
+                    <article class="stat"><div class="stat-top">Resolvidas<span class="stat-symbol" aria-hidden="true">✓</span></div><div class="stat-value" id="stat-resolved">0</div><div class="stat-foot">Com resposta concluída</div></article>
+                    <article class="stat"><div class="stat-top">Departamentos<span class="stat-symbol" aria-hidden="true">⌘</span></div><div class="stat-value" id="stat-departments">0</div><div class="stat-foot">Com trabalho atribuído</div></article>
+                </div>
+                <div class="overview-grid">
+                    <section class="surface">
+                        <div class="surface-head"><h2>Atividade recente</h2><button class="text-button" data-go-view="manage">Ver todas</button></div>
+                        <div class="incident-list" id="recent-list"></div>
+                    </section>
+                    <aside class="track-card">
+                        <h3>A sua participação, acompanhada.</h3>
+                        <p>Introduza a referência recebida ao reportar uma ocorrência para consultar o estado e as atualizações.</p>
+                        <form class="inline-form" id="quick-track-form"><input id="quick-track-id" aria-label="Referência da ocorrência" placeholder="Ex.: VC-2026-001" required><button class="primary-button" type="submit" aria-label="Consultar referência">Consultar</button></form>
+                        <div class="result-box" id="quick-track-result" aria-live="polite"></div>
+                    </aside>
+                </div>
+            </section>
+
+            <section class="page" id="page-map" aria-labelledby="map-title">
+                <div class="page-heading"><div><div class="eyebrow">Território e comunidade</div><h1 id="map-title">Mapa de ocorrências</h1><p class="heading-copy">Explore as participações com localização GPS. As zonas mais intensas destacam-se no mapa.</p></div><button class="secondary-button" id="center-map">⌖ A minha localização</button></div>
+                <div class="map-wrap"><div id="map" role="application" aria-label="Mapa interativo de ocorrências municipais"></div><div class="map-empty" id="map-empty">Ainda não existem ocorrências com coordenadas. Ative a localização ao reportar para as ver neste mapa.</div><div class="map-fallback" id="map-fallback">Não foi possível carregar o mapa. Verifique a ligação à internet e tente novamente.</div></div>
+                <div class="map-legend"><span class="legend-dot"></span> Ocorrência registada <span style="margin-left:10px">A área colorida representa concentração de ocorrências.</span></div>
+            </section>
+
+            <section class="page" id="page-manage" aria-labelledby="manage-title">
+                <div class="page-heading"><div><div class="eyebrow">Painel administrativo</div><h1 id="manage-title">Gestão de ocorrências</h1><p class="heading-copy">Consulte as participações, reveja o encaminhamento e atualize o estado de resolução.</p></div><button class="primary-button" data-open-report><span aria-hidden="true">＋</span> Nova ocorrência</button></div>
+                <div class="toolbar"><input id="manage-search" type="search" placeholder="Pesquisar referência, tema ou local" aria-label="Pesquisar ocorrências"><select id="manage-filter" class="filter-select" aria-label="Filtrar por estado"><option value="">Todos os estados</option><option>Recebida</option><option>Em análise</option><option>Encaminhada</option><option>Em resolução</option><option>Resolvida</option><option>Arquivada</option></select></div>
+                <div class="management-list" id="management-list"></div>
+            </section>
+
+            <section class="page" id="page-track" aria-labelledby="track-title">
+                <div class="page-heading"><div><div class="eyebrow">Transparência e resposta</div><h1 id="track-title">Acompanhe uma ocorrência</h1><p class="heading-copy">Use a referência de participação para consultar o estado atual e o histórico de atualizações.</p></div></div>
+                <section class="surface" style="max-width:760px">
+                    <div class="surface-head"><h2>Consultar por referência</h2></div>
+                    <div style="padding:20px">
+                        <form class="inline-form" id="track-form"><input id="track-id" aria-label="Referência da ocorrência" placeholder="Ex.: VC-2026-001" required><button class="primary-button" type="submit">Consultar estado</button></form>
+                        <div class="result-box" id="track-result" aria-live="polite"></div>
+                    </div>
+                </section>
+            </section>
+        </main>
     </div>
+
+    <dialog class="modal" id="report-modal" aria-labelledby="modal-title">
+        <form id="report-form">
+            <div class="modal-head"><div><h2 id="modal-title">Reportar ocorrência</h2><p>Descreva a situação para a encaminharmos ao serviço adequado.</p></div><button class="close-button" type="button" data-close-report aria-label="Fechar">×</button></div>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-field"><label for="report-category">Tipo de ocorrência</label><select id="report-category" required><option value="">Selecione uma categoria</option><option>Limpeza urbana</option><option>Iluminação pública</option><option>Estradas e passeios</option><option>Espaços verdes</option><option>Água e saneamento</option><option>Ruído e ambiente</option><option>Equipamentos públicos</option><option>Outro</option></select></div>
+                    <div class="form-field"><label for="report-subject">Assunto</label><input id="report-subject" maxlength="90" placeholder="Ex.: Candeeiro apagado" required></div>
+                </div>
+                <div class="form-field"><label for="report-description">Descrição</label><textarea id="report-description" maxlength="1200" placeholder="Explique o que aconteceu e indique detalhes que ajudem a identificar o local." required></textarea><small>Não inclua dados pessoais de terceiros. Máximo de 1200 caracteres.</small></div>
+                <div class="form-field"><label for="report-address">Localização por morada</label><input id="report-address" maxlength="160" placeholder="Rua, número ou ponto de referência" required></div>
+                <div class="form-field"><label for="report-photo">Fotografia <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><div class="photo-field"><input id="report-photo" type="file" accept="image/*" capture="environment"><img class="photo-preview" id="photo-preview" alt="Pré-visualização da fotografia selecionada"></div><small>A imagem é reduzida antes de ser guardada neste dispositivo.</small></div>
+                <div class="location-box"><div class="location-copy" id="location-copy"><strong>Localização GPS não obtida</strong>Permita o acesso à localização para posicionar a ocorrência no mapa.</div><button class="location-button" id="get-location" type="button">⌖ Obter localização</button></div>
+            </div>
+            <div class="privacy-line">Ao submeter, a ocorrência é guardada localmente neste navegador. Esta demonstração não envia dados ao município.</div>
+            <div class="modal-foot"><button class="secondary-button" type="button" data-close-report>Cancelar</button><button class="primary-button" type="submit">Submeter ocorrência</button></div>
+        </form>
+    </dialog>
+    <dialog class="modal" id="notifications-modal" aria-labelledby="notifications-title">
+        <div class="modal-head"><div><h2 id="notifications-title">Notificações</h2><p>Atualizações recentes das ocorrências neste dispositivo.</p></div><button class="close-button" type="button" data-close-notifications aria-label="Fechar">×</button></div>
+        <div class="modal-body"><div class="notice-list" id="notice-list"></div></div>
+        <div class="modal-foot"><button class="secondary-button" type="button" data-close-notifications>Fechar</button></div>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        (() => {
+            const STORAGE_KEY = "viva-cidade-occurrences-v1";
+            const DEPARTMENTS = {
+                "Limpeza urbana": "Higiene Urbana",
+                "Iluminação pública": "Espaço Público",
+                "Estradas e passeios": "Mobilidade e Vias",
+                "Espaços verdes": "Ambiente e Jardins",
+                "Água e saneamento": "Águas e Saneamento",
+                "Ruído e ambiente": "Ambiente e Fiscalização",
+                "Equipamentos públicos": "Equipamentos Municipais",
+                "Outro": "Atendimento Municipal"
+            };
+            const STATUSES = ["Recebida", "Em análise", "Encaminhada", "Em resolução", "Resolvida", "Arquivada"];
+            const viewNames = { overview: "Visão geral", map: "Mapa de ocorrências", manage: "Gestão", track: "Acompanhar" };
+            let reports = loadReports();
+            let map = null;
+            let mapLayers = null;
+            let photoData = "";
+            let gps = null;
+            let toastTimer;
+
+            function loadReports() {
+                try {
+                    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+                    return Array.isArray(saved) ? saved : [];
+                } catch { return []; }
+            }
+            function saveReports() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+                    return true;
+                } catch {
+                    showToast("O armazenamento do navegador está cheio. Remova algumas fotografias e tente novamente.");
+                    return false;
+                }
+            }
+            function escapeHtml(value = "") {
+                return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+            }
+            function formatDate(value) {
+                return new Intl.DateTimeFormat("pt-PT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+            }
+            function showToast(message) {
+                const toast = document.getElementById("toast");
+                toast.textContent = message;
+                toast.classList.add("show");
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => toast.classList.remove("show"), 3600);
+            }
+            function statusMarkup(status) {
+                return `<span class="status" data-status="${escapeHtml(status)}">${escapeHtml(status)}</span>`;
+            }
+            function reportCard(report) {
+                return `<article class="incident-row"><div><div class="incident-title">${escapeHtml(report.subject)}</div><div class="incident-meta">${escapeHtml(report.id)} · ${escapeHtml(report.category)} · ${escapeHtml(report.address)}<br>${formatDate(report.createdAt)}</div></div>${statusMarkup(report.status)}</article>`;
+            }
+            function render() {
+                const openCount = reports.filter(item => !["Resolvida", "Arquivada"].includes(item.status)).length;
+                document.getElementById("stat-total").textContent = reports.length;
+                document.getElementById("stat-open").textContent = openCount;
+                document.getElementById("stat-resolved").textContent = reports.filter(item => item.status === "Resolvida").length;
+                document.getElementById("stat-departments").textContent = new Set(reports.map(item => item.department)).size;
+                document.getElementById("nav-count").textContent = openCount;
+                const recent = [...reports].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+                document.getElementById("recent-list").innerHTML = recent.length ? recent.map(reportCard).join("") : `<div class="empty"><span class="empty-mark" aria-hidden="true">＋</span><strong>Ainda sem ocorrências</strong><p>Quando submeter uma participação, poderá acompanhar aqui cada atualização.</p></div>`;
+                renderManagement();
+                renderNotices();
+                renderMap();
+            }
+            function renderManagement() {
+                const query = document.getElementById("manage-search").value.trim().toLocaleLowerCase("pt-PT");
+                const filter = document.getElementById("manage-filter").value;
+                const list = [...reports].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).filter(item => (!filter || item.status === filter) && (!query || `${item.id} ${item.subject} ${item.category} ${item.address}`.toLocaleLowerCase("pt-PT").includes(query)));
+                const container = document.getElementById("management-list");
+                container.innerHTML = list.length ? list.map(item => `<article class="management-row" data-report="${escapeHtml(item.id)}"><div><div class="incident-title">${escapeHtml(item.subject)}</div><div class="incident-meta">${escapeHtml(item.id)} · ${escapeHtml(item.category)}<br>${escapeHtml(item.address)} · ${formatDate(item.createdAt)}</div><button class="text-button" type="button" data-track-id="${escapeHtml(item.id)}">Ver detalhes${item.photo ? " e fotografia" : ""}</button></div><div class="management-department"><label class="field-label" for="dept-${escapeHtml(item.id)}">Encaminhamento</label><select id="dept-${escapeHtml(item.id)}" data-department="${escapeHtml(item.id)}">${[...new Set([...Object.values(DEPARTMENTS), item.department])].map(dept => `<option ${dept === item.department ? "selected" : ""}>${escapeHtml(dept)}</option>`).join("")}</select></div><div class="management-status">${statusMarkup(item.status)}</div><div><label class="field-label" for="status-${escapeHtml(item.id)}">Atualizar estado</label><select id="status-${escapeHtml(item.id)}" data-status-select="${escapeHtml(item.id)}">${STATUSES.map(status => `<option ${status === item.status ? "selected" : ""}>${status}</option>`).join("")}</select></div></article>`).join("") : `<div class="surface empty"><span class="empty-mark" aria-hidden="true">⌕</span><strong>${reports.length ? "Nenhum resultado" : "Sem ocorrências registadas"}</strong><p>${reports.length ? "Experimente alterar os filtros de pesquisa." : "As novas participações vão aparecer nesta lista para gestão e encaminhamento."}</p></div>`;
+            }
+            function renderNotices() {
+                const notices = reports.flatMap(report => (report.history || []).map(event => ({ ...event, id: report.id, subject: report.subject }))).sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 20);
+                const dot = document.getElementById("notification-dot");
+                dot.hidden = notices.length === 0;
+                document.getElementById("notice-list").innerHTML = notices.length ? notices.map(item => `<div class="notice-item"><strong>${escapeHtml(item.id)} · ${escapeHtml(item.subject)}</strong><br>${escapeHtml(item.message)}<time>${formatDate(item.at)}</time></div>`).join("") : `<div class="empty"><span class="empty-mark" aria-hidden="true">✓</span><strong>Sem notificações</strong><p>As atualizações das suas ocorrências serão apresentadas aqui.</p></div>`;
+            }
+            function renderMap() {
+                const located = reports.filter(item => Number.isFinite(item.lat) && Number.isFinite(item.lng));
+                document.getElementById("map-empty").hidden = located.length > 0;
+                if (!map || !window.L) return;
+                mapLayers.clearLayers();
+                located.forEach(item => {
+                    const marker = L.marker([item.lat, item.lng]).bindPopup(`<strong>${escapeHtml(item.subject)}</strong><br>${escapeHtml(item.category)} · ${escapeHtml(item.status)}<br>${escapeHtml(item.address)}`);
+                    marker.addTo(mapLayers);
+                });
+                if (located.length && L.heatLayer) {
+                    L.heatLayer(located.map(item => [item.lat, item.lng, 0.7]), { radius: 34, blur: 25, maxZoom: 16, gradient: { 0.25: "#d7ed9f", 0.55: "#e9b65c", 1: "#e47b62" } }).addTo(mapLayers);
+                }
+                if (located.length) map.fitBounds(located.map(item => [item.lat, item.lng]), { padding: [35, 35], maxZoom: 15 });
+            }
+            function initializeMap() {
+                if (map || !window.L) {
+                    if (!window.L) document.getElementById("map-fallback").style.display = "grid";
+                    return;
+                }
+                map = L.map("map", { scrollWheelZoom: false }).setView([41.1496, -8.6109], 12);
+                L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
+                mapLayers = L.layerGroup().addTo(map);
+                map.on("load", () => document.getElementById("map-fallback").style.display = "none");
+                renderMap();
+                setTimeout(() => map.invalidateSize(), 100);
+            }
+            function showView(name) {
+                if (!viewNames[name]) return;
+                document.querySelectorAll(".page").forEach(page => page.classList.toggle("active", page.id === `page-${name}`));
+                document.querySelectorAll(".nav-link").forEach(link => link.setAttribute("aria-current", link.dataset.view === name ? "page" : "false"));
+                document.getElementById("breadcrumb").innerHTML = `Portal cidadão <span aria-hidden="true">/</span> ${escapeHtml(viewNames[name])}`;
+                history.replaceState(null, "", `#${name}`);
+                if (name === "map") {
+                    initializeMap();
+                    if (map) setTimeout(() => map.invalidateSize(), 100);
+                }
+                if (name === "manage") renderManagement();
+            }
+            function findReport(input) {
+                const reference = input.trim().toLocaleUpperCase("pt-PT");
+                return reports.find(item => item.id.toLocaleUpperCase("pt-PT") === reference);
+            }
+            function showTracking(reference, targetId) {
+                const target = document.getElementById(targetId);
+                const report = findReport(reference);
+                if (!report) {
+                    target.innerHTML = `<div class="notice-item">Não encontrámos essa referência neste navegador. Confirme o código ou o dispositivo onde a ocorrência foi registada.</div>`;
+                    return;
+                }
+                const historyMarkup = (report.history || []).map(event => `<div class="notice-item">${escapeHtml(event.message)}<time>${formatDate(event.at)}</time></div>`).join("");
+                target.innerHTML = `<section class="surface" style="margin-top:12px"><div class="surface-head"><div><h2>${escapeHtml(report.subject)}</h2><span class="incident-meta">${escapeHtml(report.id)} · ${escapeHtml(report.category)}</span></div>${statusMarkup(report.status)}</div><div style="padding:16px 20px"><div class="incident-meta">${escapeHtml(report.address)} · Departamento: ${escapeHtml(report.department)}</div><p style="margin:13px 0 16px;line-height:1.6">${escapeHtml(report.description)}</p>${report.photo ? `<img src="${report.photo}" alt="Fotografia da ocorrência ${escapeHtml(report.id)}" style="display:block;width:min(100%,420px);max-height:300px;margin:0 0 18px;border-radius:4px;object-fit:cover">` : ""}<strong style="display:block;margin-bottom:10px;font-size:11px">Histórico de atualizações</strong><div class="notice-list">${historyMarkup}</div></div></section>`;
+            }
+            function makeReference() {
+                const year = new Date().getFullYear();
+                const serial = String(Date.now()).slice(-6);
+                return `VC-${year}-${serial}`;
+            }
+            function addHistory(report, message) {
+                report.history = report.history || [];
+                report.history.push({ at: new Date().toISOString(), message });
+            }
+            async function compressPhoto(file) {
+                if (!file) return "";
+                if (!file.type.startsWith("image/")) throw new Error("Selecione um ficheiro de imagem válido.");
+                if (file.size > 8 * 1024 * 1024) throw new Error("A fotografia deve ter menos de 8 MB.");
+                const image = await createImageBitmap(file);
+                const scale = Math.min(1, 1200 / Math.max(image.width, image.height));
+                const canvas = document.createElement("canvas");
+                canvas.width = Math.max(1, Math.round(image.width * scale));
+                canvas.height = Math.max(1, Math.round(image.height * scale));
+                canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+                image.close();
+                return canvas.toDataURL("image/jpeg", 0.72);
+            }
+
+            document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => showView(button.dataset.view)));
+            document.querySelectorAll("[data-go-view]").forEach(button => button.addEventListener("click", () => showView(button.dataset.goView)));
+            const reportModal = document.getElementById("report-modal");
+            document.querySelectorAll("[data-open-report]").forEach(button => button.addEventListener("click", () => reportModal.showModal()));
+            document.querySelectorAll("[data-close-report]").forEach(button => button.addEventListener("click", () => reportModal.close()));
+            document.querySelectorAll("[data-close-notifications]").forEach(button => button.addEventListener("click", () => document.getElementById("notifications-modal").close()));
+            document.getElementById("notifications-button").addEventListener("click", () => document.getElementById("notifications-modal").showModal());
+            document.getElementById("manage-search").addEventListener("input", renderManagement);
+            document.getElementById("manage-filter").addEventListener("change", renderManagement);
+            document.getElementById("management-list").addEventListener("change", event => {
+                const id = event.target.dataset.statusSelect || event.target.dataset.department;
+                if (!id) return;
+                const report = reports.find(item => item.id === id);
+                if (!report) return;
+                if (event.target.dataset.statusSelect) {
+                    const nextStatus = event.target.value;
+                    if (nextStatus !== report.status) {
+                        report.status = nextStatus;
+                        addHistory(report, `Estado atualizado para “${nextStatus}”.`);
+                    }
+                } else {
+                    report.department = event.target.value;
+                    addHistory(report, `Encaminhamento atualizado para ${report.department}.`);
+                }
+                if (saveReports()) {
+                    render();
+                    showToast("Atualização guardada. A notificação já está disponível neste dispositivo.");
+                }
+            });
+            document.getElementById("management-list").addEventListener("click", event => {
+                const button = event.target.closest("[data-track-id]");
+                if (!button) return;
+                showView("track");
+                document.getElementById("track-id").value = button.dataset.trackId;
+                showTracking(button.dataset.trackId, "track-result");
+            });
+            document.getElementById("quick-track-form").addEventListener("submit", event => {
+                event.preventDefault();
+                showTracking(document.getElementById("quick-track-id").value, "quick-track-result");
+            });
+            document.getElementById("track-form").addEventListener("submit", event => {
+                event.preventDefault();
+                showTracking(document.getElementById("track-id").value, "track-result");
+            });
+            document.getElementById("get-location").addEventListener("click", () => {
+                const copy = document.getElementById("location-copy");
+                if (!navigator.geolocation) {
+                    copy.innerHTML = "<strong>GPS indisponível</strong>Este navegador não disponibiliza geolocalização.";
+                    return;
+                }
+                copy.innerHTML = "<strong>A obter localização...</strong>Confirme a permissão de localização do navegador.";
+                navigator.geolocation.getCurrentPosition(position => {
+                    gps = { lat: position.coords.latitude, lng: position.coords.longitude };
+                    copy.innerHTML = `<strong>Localização obtida</strong>${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}`;
+                }, () => {
+                    gps = null;
+                    copy.innerHTML = "<strong>Não foi possível obter o GPS</strong>Verifique as permissões e tente novamente. Pode continuar com a morada.";
+                }, { enableHighAccuracy: true, timeout: 10000 });
+            });
+            document.getElementById("report-photo").addEventListener("change", async event => {
+                const preview = document.getElementById("photo-preview");
+                const file = event.target.files[0];
+                try {
+                    photoData = await compressPhoto(file);
+                    preview.src = photoData;
+                    preview.style.display = photoData ? "block" : "none";
+                } catch (error) {
+                    event.target.value = "";
+                    photoData = "";
+                    preview.style.display = "none";
+                    showToast(error.message);
+                }
+            });
+            document.getElementById("report-form").addEventListener("submit", event => {
+                event.preventDefault();
+                const category = document.getElementById("report-category").value;
+                const report = {
+                    id: makeReference(), category,
+                    subject: document.getElementById("report-subject").value.trim(),
+                    description: document.getElementById("report-description").value.trim(),
+                    address: document.getElementById("report-address").value.trim(),
+                    department: DEPARTMENTS[category], status: "Recebida",
+                    createdAt: new Date().toISOString(), photo: photoData,
+                    ...(gps || {}), history: []
+                };
+                addHistory(report, `Ocorrência recebida e encaminhada para ${report.department}.`);
+                reports.unshift(report);
+                if (!saveReports()) {
+                    reports.shift();
+                    return;
+                }
+                reportModal.close();
+                event.target.reset();
+                photoData = "";
+                gps = null;
+                document.getElementById("photo-preview").style.display = "none";
+                document.getElementById("location-copy").innerHTML = "<strong>Localização GPS não obtida</strong>Permita o acesso à localização para posicionar a ocorrência no mapa.";
+                render();
+                showTracking(report.id, "quick-track-result");
+                document.getElementById("quick-track-id").value = report.id;
+                showToast(`Ocorrência registada. Guarde a referência ${report.id} para acompanhamento.`);
+                showView("overview");
+            });
+            document.getElementById("center-map").addEventListener("click", () => {
+                if (!navigator.geolocation) return showToast("A geolocalização não está disponível neste navegador.");
+                navigator.geolocation.getCurrentPosition(position => {
+                    initializeMap();
+                    if (map) map.setView([position.coords.latitude, position.coords.longitude], 15);
+                }, () => showToast("Não foi possível obter a sua localização. Verifique as permissões do navegador."), { enableHighAccuracy: true, timeout: 10000 });
+            });
+            document.querySelectorAll("[data-open-report]").forEach(button => button.setAttribute("aria-haspopup", "dialog"));
+            window.addEventListener("hashchange", () => showView(location.hash.slice(1) || "overview"));
+            render();
+            const initialView = location.hash.slice(1);
+            if (viewNames[initialView]) showView(initialView);
+        })();
+    </script>
 </body>
 </html>

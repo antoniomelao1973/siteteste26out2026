@@ -1,0 +1,9 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "where": true,
+        "/^powershell -NoProfile -Command \"\\$word = New-Object -ComObject Word\\.Application; \\$word\\.Visible = \\$false; \\$doc = \\$word\\.Documents\\.Open\\('C:\\\\Users\\\\antoniomelao\\\\D\\. Sancho Ensino, Lda - Escola Profissional do Infante\\\\PAP_IG24 - Documentação_Alunos\\\\Diogo Almeida\\\\FI\\.PAP\\.01 - Proposta de Projeto\\.doc', \\$false, \\$true\\); foreach \\(\\$paragraph in \\$doc\\.Paragraphs\\) \\{ \\$paragraph\\.Range\\.Text \\}; \\$doc\\.Close\\(\\$false\\); \\$word\\.Quit\\(\\)\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
